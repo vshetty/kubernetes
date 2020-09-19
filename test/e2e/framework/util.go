@@ -865,6 +865,19 @@ func (f *Framework) MatchContainerOutput(
 	return nil
 }
 
+// byFirstTimestamp sorts a slice of events by first timestamp, using their involvedObject's name as a tie breaker.
+type byFirstTimestamp []v1.Event
+
+func (o byFirstTimestamp) Len() int      { return len(o) }
+func (o byFirstTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+
+func (o byFirstTimestamp) Less(i, j int) bool {
+	if o[i].FirstTimestamp.Equal(&o[j].FirstTimestamp) {
+		return o[i].InvolvedObject.Name < o[j].InvolvedObject.Name
+	}
+	return o[i].FirstTimestamp.Before(&o[j].FirstTimestamp)
+}
+
 // EventsLister is a func that lists events.
 type EventsLister func(opts metav1.ListOptions, ns string) (*v1.EventList, error)
 
@@ -895,7 +908,10 @@ func DumpAllNamespaceInfo(c clientset.Interface, namespace string) {
 	}, namespace)
 
 	e2epod.DumpAllPodInfoForNamespace(c, namespace)
+}
 
+// DumpAllNodeInfo dumps information of maximum configured nodes in the cluster.
+func DumpAllNodeInfo(c clientset.Interface) {
 	// If cluster is large, then the following logs are basically useless, because:
 	// 1. it takes tens of minutes or hours to grab all of them
 	// 2. there are so many of them that working with them are mostly impossible
@@ -907,26 +923,13 @@ func DumpAllNamespaceInfo(c clientset.Interface, namespace string) {
 		return
 	}
 	if len(nodes.Items) <= maxNodesForDump {
-		dumpAllNodeInfo(c, nodes)
+		dumpNodeInfo(c, nodes)
 	} else {
 		Logf("skipping dumping cluster info - cluster too large")
 	}
 }
 
-// byFirstTimestamp sorts a slice of events by first timestamp, using their involvedObject's name as a tie breaker.
-type byFirstTimestamp []v1.Event
-
-func (o byFirstTimestamp) Len() int      { return len(o) }
-func (o byFirstTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-
-func (o byFirstTimestamp) Less(i, j int) bool {
-	if o[i].FirstTimestamp.Equal(&o[j].FirstTimestamp) {
-		return o[i].InvolvedObject.Name < o[j].InvolvedObject.Name
-	}
-	return o[i].FirstTimestamp.Before(&o[j].FirstTimestamp)
-}
-
-func dumpAllNodeInfo(c clientset.Interface, nodes *v1.NodeList) {
+func dumpNodeInfo(c clientset.Interface, nodes *v1.NodeList) {
 	names := make([]string, len(nodes.Items))
 	for ix := range nodes.Items {
 		names[ix] = nodes.Items[ix].Name

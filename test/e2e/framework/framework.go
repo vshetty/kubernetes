@@ -161,7 +161,7 @@ func NewFramework(baseName string, options Options, client clientset.Interface) 
 		ClientSet:                client,
 	}
 
-	f.AddAfterEach("dumpNamespaceInfo", func(f *Framework, failed bool) {
+	f.AddAfterEach("dumpNamespaceAndNodeInfo", func(f *Framework, failed bool) {
 		if !failed {
 			return
 		}
@@ -173,6 +173,7 @@ func NewFramework(baseName string, options Options, client clientset.Interface) 
 				DumpAllNamespaceInfo(f.ClientSet, ns.Name)
 			}
 		}
+		DumpAllNodeInfo(f.ClientSet)
 	})
 
 	ginkgo.BeforeEach(f.BeforeEach)
